@@ -55,19 +55,20 @@ class PlayWithHuman:
                 is_correct_position = False
                 chessman = None
                 while not is_correct_chessman:
-                    title = "请输入棋子位置: "
+                    title = "Please enter the chess piece position: "
                     input_chessman_pos = input(title)
+                    print(input_chessman_pos)
                     x, y = int(input_chessman_pos[0]), int(input_chessman_pos[1])
                     chessman = self.env.board.chessmans[x][y]
                     if chessman != None and chessman.is_red == self.env.board.is_red_turn:
                         is_correct_chessman = True
-                        print(f"当前棋子为{chessman.name_cn}，可以落子的位置有：")
+                        print(f"The current chess piece is {chessman.name}，places where you can play：")
                         for point in chessman.moving_list:
                             print(point.x, point.y)
                     else:
-                        print("没有找到此名字的棋子或未轮到此方走子")
+                        print("No chess piece with this name was found or it was not his turn to walk")
                 while not is_correct_position:
-                    title = "请输入落子的位置: "
+                    title = "Please enter the location of the child: "
                     input_chessman_pos = input(title)
                     x, y = int(input_chessman_pos[0]), int(input_chessman_pos[1])
                     is_correct_position = chessman.move(x, y)
@@ -79,12 +80,12 @@ class PlayWithHuman:
                 if not self.env.red_to_move:
                     action = flip_move(action)
                 if action is None:
-                    print("AI投降了!")
+                    print("AI surrendered!")
                     break
                 self.env.step(action)
-                print(f"AI选择移动 {action}")
+                print(f"AI chooses to move {action}")
                 self.env.board.print_to_cl()
 
         self.ai.close()
-        print(f"胜者是 is {self.env.board.winner} !!!")
+        print(f"The winner is is {self.env.board.winner} !!!")
         self.env.board.print_record()

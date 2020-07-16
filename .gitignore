@@ -1,3 +1,4 @@
+*.ttc
 *.pyc
 .DS_Store
 data/*

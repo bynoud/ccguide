@@ -143,6 +143,7 @@ class CChessPlayer:
             self.run_lock.release()
 
     def action(self, state, turns, no_act=None, depth=None, infinite=False, hist=None, increase_temp=False) -> str:
+        print("AI action ", self.play_config.simulation_num_per_move)
         self.all_done.acquire(True)
         self.root_state = state
         self.no_act = no_act

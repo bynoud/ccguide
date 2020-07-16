@@ -1,0 +1,147 @@
+
+.ChessTile {
+    height: 50px;
+    width: 50px;
+    display: inline-block;
+    position: relative;
+}
+.ChessTile:hover {
+    cursor: crosshair;
+}
+.ChessTile.Clickable:hover {
+    cursor: pointer;
+}
+
+.ChessPiece {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: black solid 1px;
+    top: 10%;
+    left: 10%;
+    position: absolute;
+
+    font-size: 100%;
+    text-align: center;
+    line-height: 30px;
+}
+
+.ChessPiece.D {
+    background-color: black;
+    color: white;
+    box-shadow: inset 0px 0px 0px 2px white, 0 8px 6px -6px black;
+}
+
+.ChessPiece.D.Focus {
+    color: greenyellow;
+}
+
+.ChessPiece.D.Selected {
+    color: greenyellow;
+    box-shadow: inset 0px 0px 0px 2px white,
+        0px 0px 0px 2px white,
+        0 2.8px 2.2px rgba(0, 0, 0, 0.034), 
+        0 6.7px 5.3px rgba(0, 0, 0, 0.048), 
+        0 12.5px 10px rgba(0, 0, 0, 0.06), 
+        0 22.3px 17.9px rgba(0, 0, 0, 0.072), 
+        0 41.8px 33.4px rgba(0, 0, 0, 0.086), 
+        0 100px 80px rgba(0, 0, 0, 0.12);
+}
+
+.ChessPiece.T {
+    background-color: #ececec;
+    color: black;
+    box-shadow: inset 0px 0px 0px 2px black, 0 8px 6px -6px black;
+}
+
+.ChessPiece.T.Focus {
+    color: red;
+}
+
+.ChessPiece.T.Selected {
+    color: red;
+    box-shadow: inset 0px 0px 0px 2px black,
+        0px 0px 0px 2px white,
+        0 2.8px 2.2px rgba(0, 0, 0, 0.034), 
+        0 6.7px 5.3px rgba(0, 0, 0, 0.048), 
+        0 12.5px 10px rgba(0, 0, 0, 0.06), 
+        0 22.3px 17.9px rgba(0, 0, 0, 0.072), 
+        0 41.8px 33.4px rgba(0, 0, 0, 0.086), 
+        0 100px 80px rgba(0, 0, 0, 0.12);
+}
+
+.ChessPiece > span {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: normal;  
+    font-weight: bold;
+    font-size: large;
+}
+
+
+.ChessTile > .Highligh {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    /* border: black solid 2px; */
+    top: 35%;
+    left: 30%;
+    position: absolute;
+    background-color: lightcoral;   
+}
+
+.ChessTile > .Highligh1 {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    /* border: black solid 2px; */
+    top: 35%;
+    left: 30%;
+    position: absolute;
+    background-color: darkgreen;
+    opacity: 50%;
+}
+
+/* 
+.ChessTile {
+    width: 25px;
+    height: 25px;
+    background-color: #eaeaea;
+    display: inline-block;
+
+} */
+
+/* .ChessTile.Top {
+    border-bottom: black solid 1px;
+}
+.ChessTile.Bot {
+    border-top: black solid 1px;
+}
+.ChessTile.Left {
+    border-right: black solid 1px;
+}
+.ChessTile.Right {
+    border-left: black solid 1px;
+}*/
+
+
+.ChessRow {
+    display: block;
+    height: 50px;
+} 
+
+.ChessBoard {
+    background-image: url("banco.png");
+    display: inline-block;
+}
+
+label {
+    display: block;
+}
+
+.BoardStatus {
+    margin: 1em;
+}
+.BoardStatus > p {
+    margin: 0;
+}
