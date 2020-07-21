@@ -1,4 +1,5 @@
 *.ttc
+*.code-workspace
 *.pyc
 .DS_Store
 data/*

@@ -43,7 +43,7 @@ def init(name="default"):
     cc_envs[name] = CCServer(config, name)
 
 ziga_cmd_consumer, ziga_cmd_sumitter = Pipe()
-guide_cmd_consumer, guide_cmd_sumitter = Pipe()
+# guide_cmd_consumer, guide_cmd_sumitter = Pipe()
 
 play_level = [
     {
@@ -92,14 +92,24 @@ class CCServer:
 
         # self.ziga_proc = Process(target=self.ziga_ws_looping)
 
-        # self.init()
+        self.init()
         # self.reset(human_first)
         # self.ziga_proc.start()
 
     def start(self):
-        self.init()
+        # self.init()
         self.reset()
-        Thread(target=self.ziga_ws_looping).start()
+        self._thr = Thread(target=self.ziga_ws_looping)
+        self._thr.daemon = True
+        self._thr.start()
+
+    def exit(self):
+        print('start shutdown', self._thr, self._thr.is_alive())
+        if self._thr and self._thr.is_alive():
+            print('send exit commd')
+            ziga_cmd_sumitter.send({'cmd':'exit'})
+            self._thr.join()
+        print('shutdown done')
 
     def update_config(self):
         print("level", self.ai_level)
@@ -130,7 +140,7 @@ class CCServer:
         self.human_first = human_first
         self.ziga_discard = False
         self.env.reset()
-        # return self.get_board()
+        return self.get_board()
         if self.ai_enabled and not self.ai_guide_only and not human_first:
             return self.ai_move()
         else:
@@ -205,11 +215,11 @@ class CCServer:
         print("STart ai_move", self.env.red_to_move)
         self.update_config()
         action, policy = self.ai.action(self.env.get_state(), self.env.num_halfmoves)
-        if not self.env.red_to_move:
-            action = flip_move(action)
         if action is None:
             print("AI surrendered!")
-            return ""
+            return None
+        if not self.env.red_to_move:
+            action = flip_move(action)
         return (int(action[0]), int(action[1]),
                 int(action[2]), int(action[3]))
 
@@ -223,68 +233,79 @@ class CCServer:
         except Exception as e:
             print('No client or error', ret, fn_name, e)
 
-    
+
+
     def ziga_ws_looping(self):
         print("siga_ws_proc started")
+        # Just make sure all lib are load
+        self.ai.action(self.env.get_state(), self.env.num_halfmoves)
 
-        while True:
-            # check if there's any user command
-            if guide_cmd_consumer.poll():
-                user = guide_cmd_consumer.recv()
-                print('user cmd', user)
-                if user['cmd'] == 'restart':
-                    if self.human_first != user['isRed']:
-                        self.ziga_call_client({'status': 'warning', 'mess': 'User already on the selected side. No update is made'})
-                    elif not self.ziga_restart_game(not user['isRed']):
-                        # failed to restore game
-                        self.move_hist = []
-                        self.ziga_discard = True
+        # return (action, lastcmd)
+        def get_actions():
+            action = None
+            while True:
+                if action is None:
+                    action = ziga_cmd_consumer.recv() # blocking
+                print("Got action", action)
+                cmd = action['cmd']
+                if cmd == 'exit':
+                    if self.ai: self.ai.close()
+                    break   # end of
+                if cmd == 'move':
+                    preaction = action
+                    action = ziga_cmd_consumer.recv() if ziga_cmd_consumer.poll() else None 
+                    yield (preaction, action is None or action['cmd'] != 'move')
+                else:
+                    yield (action, True)
+                    action = None
+            print("End of get_actions")
 
-            action = ziga_cmd_consumer.recv() # blocking
-            print('getboard cmd', action)
+        print("Start fetching actions...")
 
-            if action != None and action['cmd'] == 'newgame':
+        for action, lastcmd in get_actions():    # blocking
+            print("XXX", action, lastcmd)
+
+            if action['cmd'] == 'restart':
+                human_first = not action['isRed']
+                if self.human_first == human_first:
+                    self.ziga_call_client({'status': 'warning', 'mess': 'User already on the selected side. No update is made'})
+                elif not self.ziga_restart_game(human_first):
+                    # failed to restore game
+                    self.move_hist = []
+                    self.ziga_discard = True
+                else:
+                    self.ziga_call_client({'status': 'ok', 'mess': 'Game is restored', **self.ziga_board()})
+
+            elif action['cmd'] == 'newgame':
                 self.reset(False)
                 self.move_hist = []
-                # discard all pending user commands
-                while guide_cmd_consumer.poll(): guide_cmd_consumer.recv()
+                self.ai_level = 0
+                self.ai_enabled = False
 
                 self.ziga_call_client({'status':'warning', 
                     'mess': 'A new game started. Assume User on RED. You can restart the game with different side',
                     'cmd': 'new-game-found',
                     **self.ziga_board()})
                 
-                # if self.ziga_clients is None:
-                #     print('No client connect on newgame. This game is discared')
-                #     self.ziga_discard = True
-                # else:
-                #     print('Get user confirm')
-                #     self.ziga_call_client({'cmd': 'new-game-found'})
-                #     user = guide_cmd_consumer.recv() # blocking
-                #     print("user confirmed", user)
-                #     self.human_first = not user['isRed']  # AI is on the User side
-                #     self.ziga_call_client(self.ziga_board())
-            else:
-                while action != None:
-                    if action['cmd'] == 'move' and not self.ziga_discard:
-                        if not self.ziga_move(
-                            int(action['fx']), int(action['fy']), 
-                            int(action['tx']), int(action['ty'])):
-                            print('Move %s is not successed', action)
-                            self.ziga_discard = True
-                    if (ziga_cmd_consumer.poll()):
-                        action = ziga_cmd_consumer.recv()
-                    else:
-                        action = None
-                if self.ziga_discard:
+            elif action['cmd'] == 'move' and not self.ziga_discard:
+                moveok = self.ziga_move(int(action['fx']), int(action['fy']), 
+                                        int(action['tx']), int(action['ty']))
+                if not moveok:
+                    print('Move %s is not successed', action)
+                    self.ziga_discard = True
                     self.ziga_call_client({'status': 'error', 'mess': 'Board is not in sync. Stop follow'})
-                else:
+                elif lastcmd:
                     moves = {}
                     print("Is AI turn?", self.ai_enabled, self.human_first, self.env.red_to_move)
                     if self.ziga_ai_turn():
                         self.ziga_call_client({'status': 'ok', 'mess': 'AI is calculating next move ...', **self.ziga_board()})
                         moves = self.get_ai_move()
-                    self.ziga_call_client({'status': 'ok', 'mess': 'AI chosed move', "aimove": moves, **self.ziga_board()})
+                    if moves is None:
+                        self.ziga_call_client({'status': 'warning', 'mess': 'AI surrendered'})
+                    else:
+                        self.ziga_call_client({'status': 'ok', 'mess': 'Board updated', "aimove": moves, **self.ziga_board()})
+
+        print("End of looping")
 
     def ziga_ai_turn(self):
         if not self.ai_enabled: return False
@@ -297,10 +318,10 @@ class CCServer:
         for move in self.move_hist:
             if not self.ziga_move(move[0], move[1], move[2], move[3], True):
                 print("History restore failed", human_first)
-                self.ziga_call_client({'status':'error', 'mess': 'Could not restore the game'})
+                # self.ziga_call_client({'status':'error', 'mess': 'Could not restore the game'})
                 return False
         print("History is restored", human_first)
-        self.ziga_call_client({'status': 'ok', 'mess': 'Game is restored'})
+        # self.ziga_call_client({'status': 'ok', 'mess': 'Game is restored'})
         return True
 
     def ziga_regiter_client(self, client):
@@ -314,7 +335,8 @@ class CCServer:
 
     def guide_ws_handler(self, data):
         print('user send action', data)
-        guide_cmd_sumitter.send(data)
+        # guide_cmd_sumitter.send(data)
+        ziga_cmd_sumitter.send(data)
 
     # return True if moved successfully
     def ziga_move(self, x, y, to_x, to_y, nohist=False):
@@ -339,7 +361,11 @@ class CCServer:
                 if chess[x][y] != None: col.append(chess[x][y].name_cn)
                 else: col.append("")
             board.append(".".join(col))
-        return {"board":"|".join(board), "turn": "D" if self.env.red_to_move else "T"}
+        return {
+            "board":"|".join(board),
+            "turn": "D" if self.env.red_to_move else "T",
+            "aiEnabled": self.ai_enabled,
+            "aiLevel": self.ai_level}
 
     # # blocking
     # def ziga_get_board(self):

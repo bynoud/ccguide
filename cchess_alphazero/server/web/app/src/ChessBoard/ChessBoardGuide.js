@@ -5,9 +5,9 @@ import 'react-confirm-alert/src/react-confirm-alert.css';
 
 import './ChessBoard.css';
 import ChessMoveFns from './chessMove';
-import {socket} from './socket';
+import {socket, appURL} from './socket';
 
-const appURL = "http://localhost:5000";
+// const appURL = "http://192.168.1.11:5000";
 
 const emptyBoard = () => {
     let board = [];
@@ -82,12 +82,13 @@ class ChessBoardGuide extends Component {
             board: emptyBoard(),
             curTurn: "",
             legalMoves: [],
-            rotateBoard: true,
+            human_first: true,
             selectedTile: "",
             lastMoveFrom: "",
             lastMoveTo: "",
             aiStatus: "",
             aiLevel: 0,
+            aiEnabled: false,
             aiGuideFrom: '',
             aiGuideTo: ''
         };
@@ -106,6 +107,7 @@ class ChessBoardGuide extends Component {
             lastMoveTo: "",
             aiStatus: "",
             aiLevel: 0,
+            aiEnabled: false,
             aiGuideFrom: '',
             aiGuideTo: ''
 
@@ -121,9 +123,11 @@ class ChessBoardGuide extends Component {
         console.log('ziga-guide ???', msg);
         if (msg.cmd === 'new-game-found') this.setState({human_first: false});
         if (msg.board != undefined) this.updateBoardStr(msg.board);
-        if (msg.status) this.setState({aiStatus: `[${msg.status}] ${msg.mess}`})
+        if (msg.status) this.setState({aiStatus: `[${msg.status}] ${msg.mess}`});
         if (msg.aimove) this.setState({aiGuideFrom: `${msg.aimove[0]}${msg.aimove[1]}`,
                                        aiGuideTo: `${msg.aimove[2]}${msg.aimove[3]}`})
+        if (msg.aiEnabled != undefined) this.setState({aiEnabled: msg.aiEnabled});
+        if (msg.aiLevel != undefined) this.setState({aiLevel: msg.aiLevel});
     }
 
     userSideConfirm() {
@@ -204,16 +208,21 @@ class ChessBoardGuide extends Component {
             </div>
 
             <form>
-                <label>Allow AI to move: 
-                    <input type="checkbox" defaultChecked={this.state.aiMove} 
-                        disabled={this.state.human_first ? this.state.curTurn === 'T' : this.state.curTurn === 'D'}
-                        onChange={this.aiMoveChange.bind(this)}></input>
-                </label>
+                {/* <label>Allow AI to move: 
+                    <input type="checkbox" defaultChecked={this.state.aiEnabled} 
+                        disabled={false}
+                        onChange={this.aiEnabledChange.bind(this)}></input>
+                </label> */}
+                <div>
+                    <a>AI allowed to Move: {this.state.aiEnabled ? "Allowed" : "NO"}  </a>
+                    <button type='button' onClick={this.setAiEnabled.bind(this, true)}>Enable AI</button>
+                    <button type='button' onClick={this.setAiEnabled.bind(this, false)}>Disabled AI</button>
+                </div>
                 <label >AI level: 
                     {[0,1,2,3,4].map(lvl => 
                        <a key={`ai_level_${lvl}`}>
                            <input type="radio" name={`ai_level_${lvl}`}  
-                                  disabled={this.state.human_first ? this.state.curTurn === 'T' : this.state.curTurn === 'D'}
+                                  disabled={false}
                                   value={lvl} 
                                   checked={this.state.aiLevel==lvl}
                                   onChange={this.aiLevelChange.bind(this, lvl)}/>{lvl}</a> 
@@ -255,10 +264,12 @@ class ChessBoardGuide extends Component {
         socket.emit('user', {cmd: 'restart', isRed: !human_first})
     }
 
-    aiMoveChange(event) {
-        const enb = event.target.checked
-        this.setState({aiMove:  enb});
-        this.sendPost({func: 'enable-ai', pl: enb}).then(r => this.setState({aiMove: r.ai_enb}))
+    aiEnabledChange(event) {
+        this.setAiEnabled(event.target.checked);
+    }
+    setAiEnabled(enb) {
+        this.setState({aiEnabled:  enb});
+        this.sendPost({func: 'enable-ai', pl: enb})
     }
 
     aiLevelChange(lvl) {
